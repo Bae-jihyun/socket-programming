@@ -30,66 +30,68 @@ serverSocket.bind((HOST, PORT))
 serverSocket.listen(1)  # 1개 client를 기다리는 중
 print("The server is ready to receive client")
 connectionSocket, addr = serverSocket.accept()  # data connection socket
+try:
+    while True:
+        command = connectionSocket.recv(1024).decode()
+        lst = command.split()
 
-while True:
-    command = connectionSocket.recv(1024).decode()
-    lst = command.split()
+        if lst[0] == "bye":  # connection close
+            connectionSocket.sendall("connection close".encode())
+            break
 
-    if lst[0] == "bye":  # connection close
-        connectionSocket.sendall("connection close".encode())
-        break
+        if lst[0] == "case":  # upper, lower case
+            print("case")
+            if lst[1].isupper():
+                afterData = lst[1].lower()
+            else:
+                afterData = lst[1].upper()
+            connectionSocket.sendall(afterData.encode())
+            continue
 
-    if lst[0] == "case":  # upper, lower case
-        print("case")
-        if lst[1].isupper():
-            afterData = lst[1].lower()
+        if lst[0] == 'signUp':  # login ID
+            try:
+                if dic.get(lst[1]) is None:
+                    connectionSocket.sendall("ok. PW?".encode())
+                    while True:
+                        # 정규식 적용
+                        pw = connectionSocket.recv(1024).decode()
+                        resultPwdCheck = passwordCheck(pw)
+                        if resultPwdCheck in "success":
+                            break
+                        else:
+                            connectionSocket.sendall(resultPwdCheck.encode())
+                    dic[lst[1]] = pw
+                    connectionSocket.sendall("signUp Success.".encode())
+                else:
+                    connectionSocket.sendall("이미 존재하는 ID입니다.".encode())
+            except IndexError:
+                connectionSocket.sendall("아이디가 입력되지 않았습니다.".encode())
+            finally:
+                continue
+
+        if lst[0] == 'signIn':  # login PW
+            try:
+                if dic.get(lst[1]) is not None:
+                    connectionSocket.sendall("ok. PW?".encode())
+                    while True:
+                        pw = connectionSocket.recv(1024).decode()
+                        if dic.get(lst[1]) == pw:
+                            connectionSocket.sendall("signIn Success.".encode())
+                        else:
+                            connectionSocket.sendall("pw가 알맞지 않습니다.".encode())
+                else:
+                    connectionSocket.sendall("존재하지 않는 ID입니다.".encode())
+            except IndexError:
+                connectionSocket.sendall("아이디가 입력되지 않았습니다.".encode())
+            finally:
+                continue
+
         else:
-            afterData = lst[1].upper()
-        connectionSocket.sendall(afterData.encode())
-        continue
-
-    if lst[0] == 'signUp':  # login ID
-        try:
-            if dic.get(lst[1]) is None:
-                connectionSocket.sendall("ok. PW?".encode())
-                while True:
-                    # 정규식 적용
-                    pw = connectionSocket.recv(1024).decode()
-                    resultPwdCheck = passwordCheck(pw)
-                    if resultPwdCheck in "success":
-                        break
-                    else:
-                        connectionSocket.sendall(resultPwdCheck.encode())
-                dic[lst[1]] = pw
-                connectionSocket.sendall("signUp Success.".encode())
-            else:
-                connectionSocket.sendall("이미 존재하는 ID입니다.".encode())
-        except IndexError:
-            connectionSocket.sendall("아이디가 입력되지 않았습니다.".encode())
-        finally:
-            continue
-
-    if lst[0] == 'signIn':  # login PW
-        try:
-            if dic.get(lst[1]) is not None:
-                connectionSocket.sendall("ok. PW?".encode())
-                while True:
-                    pw = connectionSocket.recv(1024).decode()
-                    if dic.get(lst[1]) == pw:
-                        connectionSocket.sendall("signIn Success.".encode())
-                    else:
-                        connectionSocket.sendall("pw가 알맞지 않습니다.".encode())
-            else:
-                connectionSocket.sendall("존재하지 않는 ID입니다.".encode())
-        except IndexError:
-            connectionSocket.sendall("아이디가 입력되지 않았습니다.".encode())
-        finally:
-            continue
-
-    else:
-        connectionSocket.sendall("정확한 입력을 해주시기 바랍니다.".encode())
-
-print("connection close")
-connectionSocket.close()
-print("Server close")
-serverSocket.close()
+            connectionSocket.sendall("정확한 입력을 해주시기 바랍니다.".encode())
+except (ConnectionAbortedError, IndexError):
+    print("client에 의해 중단되었습니다.")
+finally:
+    print("connection close")
+    connectionSocket.close()
+    print("Server close")
+    serverSocket.close()
